@@ -1,4 +1,4 @@
-// +build js
+// +build js,wasm
 
 // Package dom provides Go bindings for the JavaScript DOM APIs.
 //
@@ -105,26 +105,25 @@
 //
 // If you depend on none of the APIs changing unexpectedly, you're
 // advised to vendor this package.
-package dom
+package godom
 
 import (
 	"image"
 	"image/color"
 	"strings"
-	"syscall/js"
 	"time"
 )
 
 // toString returns the string representation of o. If o is nil or
 // undefined, the empty string will be returned instead.
-func toString(o js.Value) string {
-	if o == js.Null() || o == js.Undefined() {
+func toString(o Value) string {
+	if o == Null() || o == Undefined() {
 		return ""
 	}
 	return o.String()
 }
 
-func callRecover(o js.Value, fn string, args ...interface{}) (err error) {
+func callRecover(o Value, fn string, args ...interface{}) (err error) {
 	defer func() {
 		e := recover()
 		if e == nil {
@@ -140,29 +139,29 @@ func callRecover(o js.Value, fn string, args ...interface{}) (err error) {
 	return nil
 }
 
-func elementConstructor(o js.Value) js.Value {
-	if n := o.Get("node"); n != js.Undefined() {
+func elementConstructor(o Value) Value {
+	if n := o.Get("node"); n != Undefined() {
 		// Support elements wrapped in Polymer's DOM APIs.
 		return n.Get("constructor")
 	}
 	return o.Get("constructor")
 }
 
-func arrayToObjects(o js.Value) []js.Value {
-	var out []js.Value
+func arrayToObjects(o Value) []Value {
+	var out []Value
 	for i := 0; i < o.Length(); i++ {
 		out = append(out, o.Index(i))
 	}
 	return out
 }
 
-func nodeListToObjects(o js.Value) []js.Value {
-	if o.Get("constructor") == js.Global().Get("Array") {
+func nodeListToObjects(o Value) []Value {
+	if o.Get("constructor") == Global().Get("Array") {
 		// Support Polymer's DOM APIs, which uses Arrays instead of
 		// NodeLists
 		return arrayToObjects(o)
 	}
-	var out []js.Value
+	var out []Value
 	length := o.Get("length").Int()
 	for i := 0; i < length; i++ {
 		out = append(out, o.Call("item", i))
@@ -170,7 +169,7 @@ func nodeListToObjects(o js.Value) []js.Value {
 	return out
 }
 
-func nodeListToNodes(o js.Value) []Node {
+func nodeListToNodes(o Value) []Node {
 	var out []Node
 	for _, obj := range nodeListToObjects(o) {
 		out = append(out, wrapNode(obj))
@@ -178,7 +177,7 @@ func nodeListToNodes(o js.Value) []Node {
 	return out
 }
 
-func nodeListToElements(o js.Value) []Element {
+func nodeListToElements(o Value) []Element {
 	var out []Element
 	for _, obj := range nodeListToObjects(o) {
 		out = append(out, wrapElement(obj))
@@ -186,7 +185,7 @@ func nodeListToElements(o js.Value) []Element {
 	return out
 }
 
-func nodeListToHTMLElements(o js.Value) []HTMLElement {
+func nodeListToHTMLElements(o Value) []HTMLElement {
 	var out []HTMLElement
 	for _, obj := range nodeListToObjects(o) {
 		out = append(out, wrapHTMLElement(obj))
@@ -194,36 +193,36 @@ func nodeListToHTMLElements(o js.Value) []HTMLElement {
 	return out
 }
 
-func WrapDocument(o js.Value) Document {
+func WrapDocument(o Value) Document {
 	return wrapDocument(o)
 }
 
-func WrapDocumentFragment(o js.Value) DocumentFragment {
+func WrapDocumentFragment(o Value) DocumentFragment {
 	return wrapDocumentFragment(o)
 }
 
-func WrapNode(o js.Value) Node {
+func WrapNode(o Value) Node {
 	return wrapNode(o)
 }
 
-func WrapElement(o js.Value) Element {
+func WrapElement(o Value) Element {
 	return wrapElement(o)
 }
 
-func WrapHTMLElement(o js.Value) HTMLElement {
+func WrapHTMLElement(o Value) HTMLElement {
 	return wrapHTMLElement(o)
 }
 
-func wrapDocument(o js.Value) Document {
+func wrapDocument(o Value) Document {
 	switch elementConstructor(o) {
-	case js.Global().Get("HTMLDocument"):
+	case Global().Get("HTMLDocument"):
 		return &htmlDocument{&document{&BasicNode{o}}}
 	default:
 		return &document{&BasicNode{o}}
 	}
 }
 
-func wrapDocumentFragment(o js.Value) DocumentFragment {
+func wrapDocumentFragment(o Value) DocumentFragment {
 	switch elementConstructor(o) {
 	// TODO: do we have any other stuff we want to check
 	default:
@@ -231,21 +230,21 @@ func wrapDocumentFragment(o js.Value) DocumentFragment {
 	}
 }
 
-func wrapNode(o js.Value) Node {
-	if o == js.Null() || o == js.Undefined() {
+func wrapNode(o Value) Node {
+	if o == Null() || o == Undefined() {
 		return nil
 	}
 	switch elementConstructor(o) {
 	// TODO all the non-element cases
-	case js.Global().Get("Text"):
+	case Global().Get("Text"):
 		return Text{&BasicNode{o}}
 	default:
 		return wrapElement(o)
 	}
 }
 
-func wrapElement(o js.Value) Element {
-	if o == js.Null() || o == js.Undefined() {
+func wrapElement(o Value) Element {
+	if o == Null() || o == Undefined() {
 		return nil
 	}
 	switch elementConstructor(o) {
@@ -255,159 +254,159 @@ func wrapElement(o js.Value) Element {
 	}
 }
 
-func wrapHTMLElement(o js.Value) HTMLElement {
-	if o == js.Null() || o == js.Undefined() {
+func wrapHTMLElement(o Value) HTMLElement {
+	if o == Null() || o == Undefined() {
 		return nil
 	}
 	el := &BasicHTMLElement{&BasicElement{&BasicNode{o}}}
 	c := elementConstructor(o)
 	switch c {
-	case js.Global().Get("HTMLAnchorElement"):
+	case Global().Get("HTMLAnchorElement"):
 		return &HTMLAnchorElement{BasicHTMLElement: el, URLUtils: &URLUtils{Value: o}}
-	case js.Global().Get("HTMLAppletElement"):
+	case Global().Get("HTMLAppletElement"):
 		return &HTMLAppletElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLAreaElement"):
+	case Global().Get("HTMLAreaElement"):
 		return &HTMLAreaElement{BasicHTMLElement: el, URLUtils: &URLUtils{Value: o}}
-	case js.Global().Get("HTMLAudioElement"):
+	case Global().Get("HTMLAudioElement"):
 		return &HTMLAudioElement{HTMLMediaElement: &HTMLMediaElement{BasicHTMLElement: el}}
-	case js.Global().Get("HTMLBaseElement"):
+	case Global().Get("HTMLBaseElement"):
 		return &HTMLBaseElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLBodyElement"):
+	case Global().Get("HTMLBodyElement"):
 		return &HTMLBodyElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLBRElement"):
+	case Global().Get("HTMLBRElement"):
 		return &HTMLBRElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLButtonElement"):
+	case Global().Get("HTMLButtonElement"):
 		return &HTMLButtonElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLCanvasElement"):
+	case Global().Get("HTMLCanvasElement"):
 		return &HTMLCanvasElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLDataElement"):
+	case Global().Get("HTMLDataElement"):
 		return &HTMLDataElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLDataListElement"):
+	case Global().Get("HTMLDataListElement"):
 		return &HTMLDataListElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLDirectoryElement"):
+	case Global().Get("HTMLDirectoryElement"):
 		return &HTMLDirectoryElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLDivElement"):
+	case Global().Get("HTMLDivElement"):
 		return &HTMLDivElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLDListElement"):
+	case Global().Get("HTMLDListElement"):
 		return &HTMLDListElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLEmbedElement"):
+	case Global().Get("HTMLEmbedElement"):
 		return &HTMLEmbedElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLFieldSetElement"):
+	case Global().Get("HTMLFieldSetElement"):
 		return &HTMLFieldSetElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLFontElement"):
+	case Global().Get("HTMLFontElement"):
 		return &HTMLFontElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLFormElement"):
+	case Global().Get("HTMLFormElement"):
 		return &HTMLFormElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLFrameElement"):
+	case Global().Get("HTMLFrameElement"):
 		return &HTMLFrameElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLFrameSetElement"):
+	case Global().Get("HTMLFrameSetElement"):
 		return &HTMLFrameSetElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLHeadElement"):
+	case Global().Get("HTMLHeadElement"):
 		return &HTMLHeadElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLHeadingElement"):
+	case Global().Get("HTMLHeadingElement"):
 		return &HTMLHeadingElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLHtmlElement"):
+	case Global().Get("HTMLHtmlElement"):
 		return &HTMLHtmlElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLHRElement"):
+	case Global().Get("HTMLHRElement"):
 		return &HTMLHRElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLIFrameElement"):
+	case Global().Get("HTMLIFrameElement"):
 		return &HTMLIFrameElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLImageElement"):
+	case Global().Get("HTMLImageElement"):
 		return &HTMLImageElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLInputElement"):
+	case Global().Get("HTMLInputElement"):
 		return &HTMLInputElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLKeygenElement"):
+	case Global().Get("HTMLKeygenElement"):
 		return &HTMLKeygenElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLLabelElement"):
+	case Global().Get("HTMLLabelElement"):
 		return &HTMLLabelElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLLegendElement"):
+	case Global().Get("HTMLLegendElement"):
 		return &HTMLLegendElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLLIElement"):
+	case Global().Get("HTMLLIElement"):
 		return &HTMLLIElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLLinkElement"):
+	case Global().Get("HTMLLinkElement"):
 		return &HTMLLinkElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLMapElement"):
+	case Global().Get("HTMLMapElement"):
 		return &HTMLMapElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLMediaElement"):
+	case Global().Get("HTMLMediaElement"):
 		return &HTMLMediaElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLMenuElement"):
+	case Global().Get("HTMLMenuElement"):
 		return &HTMLMenuElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLMetaElement"):
+	case Global().Get("HTMLMetaElement"):
 		return &HTMLMetaElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLMeterElement"):
+	case Global().Get("HTMLMeterElement"):
 		return &HTMLMeterElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLModElement"):
+	case Global().Get("HTMLModElement"):
 		return &HTMLModElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLObjectElement"):
+	case Global().Get("HTMLObjectElement"):
 		return &HTMLObjectElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLOListElement"):
+	case Global().Get("HTMLOListElement"):
 		return &HTMLOListElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLOptGroupElement"):
+	case Global().Get("HTMLOptGroupElement"):
 		return &HTMLOptGroupElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLOptionElement"):
+	case Global().Get("HTMLOptionElement"):
 		return &HTMLOptionElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLOutputElement"):
+	case Global().Get("HTMLOutputElement"):
 		return &HTMLOutputElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLParagraphElement"):
+	case Global().Get("HTMLParagraphElement"):
 		return &HTMLParagraphElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLParamElement"):
+	case Global().Get("HTMLParamElement"):
 		return &HTMLParamElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLPreElement"):
+	case Global().Get("HTMLPreElement"):
 		return &HTMLPreElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLProgressElement"):
+	case Global().Get("HTMLProgressElement"):
 		return &HTMLProgressElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLQuoteElement"):
+	case Global().Get("HTMLQuoteElement"):
 		return &HTMLQuoteElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLScriptElement"):
+	case Global().Get("HTMLScriptElement"):
 		return &HTMLScriptElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLSelectElement"):
+	case Global().Get("HTMLSelectElement"):
 		return &HTMLSelectElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLSourceElement"):
+	case Global().Get("HTMLSourceElement"):
 		return &HTMLSourceElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLSpanElement"):
+	case Global().Get("HTMLSpanElement"):
 		return &HTMLSpanElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLStyleElement"):
+	case Global().Get("HTMLStyleElement"):
 		return &HTMLStyleElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLTableElement"):
+	case Global().Get("HTMLTableElement"):
 		return &HTMLTableElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLTableCaptionElement"):
+	case Global().Get("HTMLTableCaptionElement"):
 		return &HTMLTableCaptionElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLTableCellElement"):
+	case Global().Get("HTMLTableCellElement"):
 		return &HTMLTableCellElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLTableDataCellElement"):
+	case Global().Get("HTMLTableDataCellElement"):
 		return &HTMLTableDataCellElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLTableHeaderCellElement"):
+	case Global().Get("HTMLTableHeaderCellElement"):
 		return &HTMLTableHeaderCellElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLTableColElement"):
+	case Global().Get("HTMLTableColElement"):
 		return &HTMLTableColElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLTableRowElement"):
+	case Global().Get("HTMLTableRowElement"):
 		return &HTMLTableRowElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLTableSectionElement"):
+	case Global().Get("HTMLTableSectionElement"):
 		return &HTMLTableSectionElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLTemplateElement"):
+	case Global().Get("HTMLTemplateElement"):
 		return &HTMLTemplateElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLTextAreaElement"):
+	case Global().Get("HTMLTextAreaElement"):
 		return &HTMLTextAreaElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLTimeElement"):
+	case Global().Get("HTMLTimeElement"):
 		return &HTMLTimeElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLTitleElement"):
+	case Global().Get("HTMLTitleElement"):
 		return &HTMLTitleElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLTrackElement"):
+	case Global().Get("HTMLTrackElement"):
 		return &HTMLTrackElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLUListElement"):
+	case Global().Get("HTMLUListElement"):
 		return &HTMLUListElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLUnknownElement"):
+	case Global().Get("HTMLUnknownElement"):
 		return &HTMLUnknownElement{BasicHTMLElement: el}
-	case js.Global().Get("HTMLVideoElement"):
+	case Global().Get("HTMLVideoElement"):
 		return &HTMLVideoElement{HTMLMediaElement: &HTMLMediaElement{BasicHTMLElement: el}}
-	case js.Global().Get("HTMLElement"):
+	case Global().Get("HTMLElement"):
 		return el
 	default:
 		return el
 	}
 }
 
-func getForm(o js.Value) *HTMLFormElement {
+func getForm(o Value) *HTMLFormElement {
 	form := wrapHTMLElement(o.Get("form"))
 	if form == nil {
 		return nil
@@ -415,7 +414,7 @@ func getForm(o js.Value) *HTMLFormElement {
 	return form.(*HTMLFormElement)
 }
 
-func getLabels(o js.Value) []*HTMLLabelElement {
+func getLabels(o Value) []*HTMLLabelElement {
 	labels := nodeListToElements(o.Get("labels"))
 	out := make([]*HTMLLabelElement, len(labels))
 	for i, label := range labels {
@@ -424,7 +423,7 @@ func getLabels(o js.Value) []*HTMLLabelElement {
 	return out
 }
 
-func getOptions(o js.Value, attr string) []*HTMLOptionElement {
+func getOptions(o Value, attr string) []*HTMLOptionElement {
 	options := nodeListToElements(o.Get(attr))
 	out := make([]*HTMLOptionElement, len(options))
 	for i, option := range options {
@@ -434,13 +433,13 @@ func getOptions(o js.Value, attr string) []*HTMLOptionElement {
 }
 
 func GetWindow() Window {
-	return &window{js.Global()}
+	return &window{Global()}
 }
 
 type TokenList struct {
-	dtl js.Value // the underlying DOMTokenList
-	o   js.Value // the object to which the DOMTokenList belongs
-	sa  string   // the name of the corresponding string attribute, empty if there isn't one
+	dtl Value  // the underlying DOMTokenList
+	o   Value  // the object to which the DOMTokenList belongs
+	sa  string // the name of the corresponding string attribute, empty if there isn't one
 }
 
 func (tl *TokenList) Length() int { return tl.dtl.Get("length").Int() }
@@ -470,7 +469,7 @@ func (tl *TokenList) String() string {
 	if tl.sa != "" {
 		return tl.o.Get(tl.sa).String()
 	}
-	if tl.dtl.Get("constructor") == js.Global().Get("DOMSettableTokenList") {
+	if tl.dtl.Get("constructor") == Global().Get("DOMSettableTokenList") {
 		return tl.dtl.Get("value").String()
 	}
 	// We could manually construct the string, but I am not aware of
@@ -495,7 +494,7 @@ func (tl *TokenList) SetString(s string) {
 		tl.o.Set(tl.sa, s)
 		return
 	}
-	if tl.dtl.Get("constructor") == js.Global().Get("DOMSettableTokenList") {
+	if tl.dtl.Get("constructor") == Global().Get("DOMSettableTokenList") {
 		tl.dtl.Set("value", s)
 		return
 	}
@@ -836,7 +835,7 @@ func (d document) QuerySelectorAll(sel string) []Element {
 }
 
 type URLUtils struct {
-	js.Value
+	Value
 }
 
 func (u *URLUtils) Href() string     { return u.Get("href").String() }
@@ -865,7 +864,7 @@ func (u *URLUtils) SetPassword(v string) { u.Set("password", v) }
 // TODO Location methods
 
 type Location struct {
-	js.Value
+	Value
 	*URLUtils
 }
 
@@ -968,7 +967,7 @@ type Window interface {
 
 type window struct {
 	// TODO EventTarget
-	js.Value
+	Value
 }
 
 func (w *window) Console() *Console {
@@ -1184,7 +1183,7 @@ func (w *window) SetInterval(fn func(), delay int) int {
 	// gets cancelled via ClearInterval.
 	// See TODO comment in window.RequestAnimationFrame for more details.
 
-	wrapper := js.FuncOf(func(js.Value, []js.Value) interface{} {
+	wrapper := FuncOf(func(Value, []Value) interface{} {
 		fn()
 		return nil
 	})
@@ -1197,8 +1196,8 @@ func (w *window) SetTimeout(fn func(), delay int) int {
 	// before triggering.
 	// See TODO comment in window.RequestAnimationFrame for more details.
 
-	var wrapper js.Func
-	wrapper = js.FuncOf(func(js.Value, []js.Value) interface{} {
+	var wrapper Func
+	wrapper = FuncOf(func(Value, []Value) interface{} {
 		fn()
 		wrapper.Release()
 		return nil
@@ -1212,8 +1211,8 @@ func (w *window) Stop() {
 
 // TODO reuse util.EventTarget
 
-func (w *window) AddEventListener(typ string, useCapture bool, listener func(Event)) js.Func {
-	wrapper := js.FuncOf(func(_ js.Value, args []js.Value) interface{} {
+func (w *window) AddEventListener(typ string, useCapture bool, listener func(Event)) Func {
+	wrapper := FuncOf(func(_ Value, args []Value) interface{} {
 		listener(wrapEvent(args[0]))
 		return nil
 	})
@@ -1221,7 +1220,7 @@ func (w *window) AddEventListener(typ string, useCapture bool, listener func(Eve
 	return wrapper
 }
 
-func (w *window) RemoveEventListener(typ string, useCapture bool, listener js.Func) {
+func (w *window) RemoveEventListener(typ string, useCapture bool, listener Func) {
 	w.Call("removeEventListener", typ, listener, useCapture)
 	listener.Release()
 }
@@ -1230,7 +1229,7 @@ func (w *window) DispatchEvent(event Event) bool {
 	return w.Call("dispatchEvent", event).Bool()
 }
 
-func wrapDOMHighResTimeStamp(o js.Value) time.Duration {
+func wrapDOMHighResTimeStamp(o Value) time.Duration {
 	return time.Duration(o.Float() * float64(time.Millisecond))
 }
 
@@ -1249,8 +1248,8 @@ func (w *window) RequestAnimationFrame(callback func(time.Duration)) int {
 	// so we can avoid the need for a map/mutex. But that requires
 	// an API change and it would deviate more from the DOM API.
 
-	var wrapper js.Func
-	wrapper = js.FuncOf(func(_ js.Value, args []js.Value) interface{} {
+	var wrapper Func
+	wrapper = FuncOf(func(_ Value, args []Value) interface{} {
 		callback(wrapDOMHighResTimeStamp(args[0]))
 		wrapper.Release()
 		return nil
@@ -1269,7 +1268,7 @@ type Selection interface {
 }
 
 type Screen struct {
-	js.Value
+	Value
 }
 
 func (s *Screen) AvailTop() int    { return s.Get("availTop").Int() }
@@ -1324,7 +1323,7 @@ type Geolocation interface {
 }
 
 type PositionError struct {
-	js.Value
+	Value
 }
 
 func (err *PositionError) Code() int { return err.Get("code").Int() }
@@ -1345,7 +1344,7 @@ type Position struct {
 }
 
 type Coordinates struct {
-	js.Value
+	Value
 }
 
 func (c *Coordinates) Latitude() float64         { return c.Get("latitude").Float() }
@@ -1367,7 +1366,7 @@ type History interface {
 }
 
 type Console struct {
-	js.Value
+	Value
 	// TODO will replace the js/console package
 }
 
@@ -1380,7 +1379,7 @@ type CSSStyleSheet interface{}
 type Node interface {
 	EventTarget
 
-	Underlying() js.Value
+	Underlying() Value
 	BaseURI() string
 	ChildNodes() []Node
 	FirstChild() Node
@@ -1414,15 +1413,15 @@ type Node interface {
 // Type BasicNode implements the Node interface and is embedded by
 // concrete node types and element types.
 type BasicNode struct {
-	js.Value
+	Value
 }
 
-func (n *BasicNode) Underlying() js.Value {
+func (n *BasicNode) Underlying() Value {
 	return n.Value
 }
 
-func (n *BasicNode) AddEventListener(typ string, useCapture bool, listener func(Event)) js.Func {
-	wrapper := js.FuncOf(func(_ js.Value, args []js.Value) interface{} {
+func (n *BasicNode) AddEventListener(typ string, useCapture bool, listener func(Event)) Func {
+	wrapper := FuncOf(func(_ Value, args []Value) interface{} {
 		listener(wrapEvent(args[0]))
 		return nil
 	})
@@ -1430,7 +1429,7 @@ func (n *BasicNode) AddEventListener(typ string, useCapture bool, listener func(
 	return wrapper
 }
 
-func (n *BasicNode) RemoveEventListener(typ string, useCapture bool, listener js.Func) {
+func (n *BasicNode) RemoveEventListener(typ string, useCapture bool, listener Func) {
 	n.Call("removeEventListener", typ, listener, useCapture)
 	listener.Release()
 }
@@ -1601,7 +1600,7 @@ type Element interface {
 //
 // Reference: https://developer.mozilla.org/en-US/docs/Web/API/DOMRect.
 type Rect struct {
-	js.Value
+	Value
 }
 
 func (r *Rect) X() float64      { return r.Get("x").Float() }
@@ -1653,11 +1652,11 @@ func (e *BasicHTMLElement) Dataset() map[string]string {
 }
 
 // jsKeys returns the keys of the given JavaScript object.
-func jsKeys(o js.Value) []string {
-	if o == js.Null() || o == js.Undefined() {
+func jsKeys(o Value) []string {
+	if o == Null() || o == Undefined() {
 		return nil
 	}
-	a := js.Global().Get("Object").Call("keys", o)
+	a := Global().Get("Object").Call("keys", o)
 	s := make([]string, a.Length())
 	for i := 0; i < a.Length(); i++ {
 		s[i] = a.Index(i).String()
@@ -2033,7 +2032,7 @@ func (e *HTMLCanvasElement) SetWidth(v int)  { e.Set("width", v) }
 func (e *HTMLCanvasElement) SetHeight(v int) { e.Set("height", v) }
 
 type CanvasRenderingContext2D struct {
-	js.Value
+	Value
 }
 
 // Colors, Styles, and Shadows
@@ -2087,12 +2086,12 @@ func (ctx *CanvasRenderingContext2D) SetGlobalCompositeOperation(v string) {
 }
 
 type ImageData struct {
-	js.Value
+	Value
 }
 
-func (m *ImageData) Width() int     { return m.Get("width").Int() }
-func (m *ImageData) Height() int    { return m.Get("height").Int() }
-func (m *ImageData) Data() js.Value { return m.Get("data") }
+func (m *ImageData) Width() int  { return m.Get("width").Int() }
+func (m *ImageData) Height() int { return m.Get("height").Int() }
+func (m *ImageData) Data() Value { return m.Get("data") }
 
 func (m *ImageData) ColorModel() color.Model { return color.NRGBAModel }
 
@@ -2149,11 +2148,11 @@ func (m *ImageData) SetNRGBA(x, y int, c color.NRGBA) {
 //
 // Reference: https://developer.mozilla.org/en-US/docs/Web/API/CanvasGradient.
 type CanvasGradient struct {
-	js.Value
+	Value
 }
 
 // AddColorStop adds a new stop, defined by an offset and a color, to the gradient.
-// It panics with *js.Error if the offset is not between 0 and 1, or if the color
+// It panics with *Error if the offset is not between 0 and 1, or if the color
 // can't be parsed as a CSS <color>.
 //
 // Reference: https://developer.mozilla.org/en-US/docs/Web/API/CanvasGradient/addColorStop.
@@ -2167,11 +2166,11 @@ func (cg *CanvasGradient) AddColorStop(offset float64, color string) {
 //
 // Reference: https://developer.mozilla.org/en-US/docs/Web/API/CanvasPattern.
 type CanvasPattern struct {
-	js.Value
+	Value
 }
 
 type TextMetrics struct {
-	js.Value
+	Value
 }
 
 func (m *TextMetrics) Width() float64                  { return m.Get("width").Float() }
@@ -2198,7 +2197,7 @@ func (e *HTMLCanvasElement) GetContext2d() *CanvasRenderingContext2D {
 	return &CanvasRenderingContext2D{Value: ctx}
 }
 
-func (e *HTMLCanvasElement) GetContext(param string) js.Value {
+func (e *HTMLCanvasElement) GetContext(param string) Value {
 	return e.Call("getContext", param)
 }
 
@@ -2339,11 +2338,11 @@ func (ctx *CanvasRenderingContext2D) Stroke() {
 	ctx.Call("stroke")
 }
 
-func (ctx *CanvasRenderingContext2D) DrawFocusIfNeeded(element HTMLElement, path js.Value) {
+func (ctx *CanvasRenderingContext2D) DrawFocusIfNeeded(element HTMLElement, path Value) {
 	ctx.Call("drawFocusIfNeeded", element, path)
 }
 
-func (ctx *CanvasRenderingContext2D) ScrollPathIntoView(path js.Value) {
+func (ctx *CanvasRenderingContext2D) ScrollPathIntoView(path Value) {
 	ctx.Call("scrollPathIntoView", path)
 }
 
@@ -2355,7 +2354,7 @@ func (ctx *CanvasRenderingContext2D) IsPointInPath(x, y float64) bool {
 	return ctx.Call("isPointInPath", x, y).Bool()
 }
 
-func (ctx *CanvasRenderingContext2D) IsPointInStroke(path js.Value, x, y float64) bool {
+func (ctx *CanvasRenderingContext2D) IsPointInStroke(path Value, x, y float64) bool {
 	return ctx.Call("isPointInStroke", path, x, y).Bool()
 }
 
@@ -2671,7 +2670,7 @@ func (e *HTMLInputElement) SetWillValidate(v bool)         { e.Set("willValidate
 // and drop. The dom package does not define any methods on File nor
 // does it provide access to the blob or a way to read it.
 type File struct {
-	js.Value
+	Value
 }
 
 func (e *HTMLInputElement) Files() []*File {
@@ -3224,7 +3223,7 @@ func (e *HTMLTitleElement) Text() string { return e.Get("text").String() }
 // not currently provide any methods or attributes and it hasn't been
 // decided yet whether they will be added to this package or a
 // separate package.
-type TextTrack struct{ js.Value }
+type TextTrack struct{ Value }
 
 type HTMLTrackElement struct {
 	*BasicHTMLElement
@@ -3250,7 +3249,7 @@ type HTMLUnknownElement struct{ *BasicHTMLElement }
 type HTMLVideoElement struct{ *HTMLMediaElement }
 
 type ValidityState struct {
-	js.Value
+	Value
 }
 
 func (s *ValidityState) CustomError() bool     { return s.Get("customError").Bool() }
@@ -3263,7 +3262,7 @@ func (s *ValidityState) TypeMismatch() bool    { return s.Get("typeMismatch").Bo
 func (s *ValidityState) Valid() bool           { return s.Get("valid").Bool() }
 func (s *ValidityState) ValueMissing() bool    { return s.Get("valueMissing").Bool() }
 
-type CSSStyleDeclaration struct{ js.Value }
+type CSSStyleDeclaration struct{ Value }
 
 func (css *CSSStyleDeclaration) ToMap() map[string]string {
 	m := make(map[string]string)

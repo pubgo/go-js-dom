@@ -1,6 +1,6 @@
-// +build js
+// +build js,wasm
 
-package dom
+package godom
 
 import (
 	"image"
