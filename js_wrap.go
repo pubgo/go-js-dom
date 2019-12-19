@@ -23,10 +23,15 @@ type Value interface {
 	Int() int
 	InstanceOf(t Value) bool
 	Index(i int) Value
+	Delete(key string)
 }
 
 type jsObject struct {
 	o js.Value
+}
+
+func (w *jsObject) Delete(key string) {
+	w.o.Call("delete", key)
 }
 
 func (w *jsObject) String() string {
@@ -135,6 +140,14 @@ func Global() Value {
 }
 
 func ValueOf(x interface{}) Value {
+	if x == js.Null() {
+		return nil
+	}
+
+	if x == js.Undefined() {
+		return ValueOf(js.Undefined())
+	}
+
 	return &jsObject{o: js.ValueOf(x)}
 }
 
