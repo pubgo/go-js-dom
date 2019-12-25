@@ -63,6 +63,13 @@ func (w *jsObject) Float() float64 {
 }
 
 func (w *jsObject) Get(p string) Value {
+	if w.o == js.Null() {
+		return nil
+	}
+
+	if w.o == js.Undefined() {
+		return &jsObject{o: js.Undefined()}
+	}
 	return ValueOf(w.o.Get(p))
 }
 
