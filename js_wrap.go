@@ -145,7 +145,7 @@ func ValueOf(x interface{}) Value {
 	}
 
 	if x == js.Undefined() {
-		return ValueOf(js.Undefined())
+		return &jsObject{o: js.Undefined()}
 	}
 
 	return &jsObject{o: js.ValueOf(x)}
