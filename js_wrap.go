@@ -63,13 +63,6 @@ func (w *jsObject) Float() float64 {
 }
 
 func (w *jsObject) Get(p string) Value {
-	if w.o == js.Null() {
-		return nil
-	}
-
-	if w.o == js.Undefined() {
-		return &jsObject{o: js.Undefined()}
-	}
 	return ValueOf(w.o.Get(p))
 }
 
@@ -153,11 +146,11 @@ func Global() Value {
 
 func ValueOf(x interface{}) Value {
 	if x == js.Null() {
-		return Null()
+		return nil
 	}
 
 	if x == js.Undefined() {
-		return Undefined()
+		return nil
 	}
 
 	return &jsObject{o: js.ValueOf(x)}

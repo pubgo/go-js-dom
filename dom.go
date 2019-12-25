@@ -140,7 +140,7 @@ func callRecover(o Value, fn string, args ...interface{}) (err error) {
 }
 
 func elementConstructor(o Value) Value {
-	if n := o.Get("node"); n != Undefined() {
+	if n := o.Get("node"); n != Null() {
 		// Support elements wrapped in Polymer's DOM APIs.
 		return n.Get("constructor")
 	}
