@@ -137,6 +137,7 @@ func Undefined() Value {
 }
 
 func Null() Value {
+
 	return nil
 }
 
@@ -153,7 +154,16 @@ func ValueOf(x interface{}) Value {
 		return nil
 	}
 
-	return &jsObject{o: js.ValueOf(x)}
+	if _x, ok := x.(Value); ok {
+		return _x
+	}
+
+	switch _x := x.(type) {
+	case Value:
+		return _x
+	default:
+		return &jsObject{o: js.ValueOf(x)}
+	}
 }
 
 func CopyBytesToGo(dst []byte, src Value) int {
