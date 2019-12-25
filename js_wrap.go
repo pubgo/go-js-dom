@@ -134,25 +134,30 @@ func FuncOf(fn func(this Value, args []Value) interface{}) Func {
 	})
 }
 
+var (
+	_undefined = &jsObject{o: js.Undefined()}
+	_global    = ValueOf(js.Global())
+)
+
 func Undefined() Value {
-	return ValueOf(js.Undefined())
+	return _undefined
 }
 
 func Null() Value {
-	return ValueOf(js.Null())
+	return nil
 }
 
 func Global() Value {
-	return ValueOf(js.Global())
+	return _global
 }
 
 func ValueOf(x interface{}) Value {
 	if x == js.Null() {
-		return nil
+		return Null()
 	}
 
 	if x == js.Undefined() {
-		return &jsObject{o: js.Undefined()}
+		return Undefined()
 	}
 
 	return &jsObject{o: js.ValueOf(x)}
