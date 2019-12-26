@@ -137,7 +137,6 @@ func Undefined() Value {
 }
 
 func Null() Value {
-
 	return nil
 }
 

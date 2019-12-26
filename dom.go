@@ -111,6 +111,7 @@ import (
 	"image"
 	"image/color"
 	"strings"
+	"syscall/js"
 	"time"
 )
 
@@ -140,7 +141,7 @@ func callRecover(o Value, fn string, args ...interface{}) (err error) {
 }
 
 func elementConstructor(o Value) Value {
-	if n := o.Get("node"); n != Null() {
+	if n := o.Get("node"); n != nil && n.JSValue() != js.Undefined() {
 		// Support elements wrapped in Polymer's DOM APIs.
 		return n.Get("constructor")
 	}
