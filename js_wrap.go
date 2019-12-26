@@ -43,14 +43,26 @@ func (w *jsObject) Type() Type {
 }
 
 func (w *jsObject) New(args ...interface{}) Value {
+	if !w.check() {
+		return nil
+	}
+
 	return ValueOf(w.o.New(args...))
 }
 
 func (w *jsObject) Call(m string, args ...interface{}) Value {
+	if !w.check() {
+		return nil
+	}
+
 	return ValueOf(w.o.Call(m, args...))
 }
 
 func (w *jsObject) Invoke(args ...interface{}) Value {
+	if !w.check() {
+		return nil
+	}
+
 	return ValueOf(w.o.Invoke(args...))
 }
 
@@ -63,6 +75,10 @@ func (w *jsObject) Float() float64 {
 }
 
 func (w *jsObject) Get(p string) Value {
+	if !w.check() {
+		return nil
+	}
+
 	return ValueOf(w.o.Get(p))
 }
 
@@ -91,11 +107,26 @@ func (w *jsObject) InstanceOf(t Value) bool {
 }
 
 func (w *jsObject) Index(i int) Value {
+	if !w.check() {
+		return nil
+	}
+
 	return ValueOf(w.o.Index(i))
 }
 
 func (w *jsObject) JSValue() js.Value {
 	return w.o.JSValue()
+}
+
+func (w *jsObject) check() bool {
+	if w.o == js.Null() {
+		return false
+	}
+
+	if w.o == js.Undefined() {
+		return false
+	}
+	return true
 }
 
 type (
@@ -151,10 +182,6 @@ func ValueOf(x interface{}) Value {
 
 	if x == js.Undefined() {
 		return nil
-	}
-
-	if _x, ok := x.(Value); ok {
-		return _x
 	}
 
 	switch _x := x.(type) {
